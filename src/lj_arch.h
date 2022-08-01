@@ -33,6 +33,8 @@
 #define LUAJIT_ARCH_mips64	7
 #define LUAJIT_ARCH_S390X	8
 #define LUAJIT_ARCH_s390x	8
+#define LUAJIT_ARCH_LOONGARCH64		9
+#define LUAJIT_ARCH_loongarch64		9
 
 /* Target OS. */
 #define LUAJIT_OS_OTHER		0
@@ -69,6 +71,8 @@
 #define LUAJIT_TARGET	LUAJIT_ARCH_MIPS64
 #elif defined(__mips__) || defined(__mips) || defined(__MIPS__) || defined(__MIPS)
 #define LUAJIT_TARGET	LUAJIT_ARCH_MIPS32
+#elif defined(__loongarch64)
+#define LUAJIT_TARGET	LUAJIT_ARCH_LOONGARCH64
 #else
 #error "No support for this architecture (yet)"
 #endif
@@ -458,6 +462,20 @@
 #define LJ_TARGET_GC64		1
 #define LJ_ARCH_NOJIT		1	/* NYI */
 
+#elif LUAJIT_TARGET == LUAJIT_ARCH_LOONGARCH64
+#define LJ_ARCH_NAME		"loongarch64"
+#define LJ_ARCH_BITS		64
+#define LJ_ARCH_ENDIAN		LUAJIT_LE
+#define LJ_TARGET_LOONGARCH64	1
+#define LJ_TARGET_GC64		1
+#define LJ_TARGET_EHRETREG	4
+#define LJ_TARGET_EHRAREG	1
+#define LJ_TARGET_JUMPRANGE	27	/* +-2^27 = +-128MB */
+#define LJ_TARGET_MASKSHIFT	1
+#define LJ_TARGET_MASKROT	1
+#define LJ_TARGET_UNIFYROT	2	/* Want only IR_BROR. */
+#define LJ_ARCH_NUMMODE		LJ_NUMMODE_DUAL
+
 #else
 #error "No target architecture defined"
 #endif
@@ -486,6 +504,16 @@
 #else
 #if (__GNUC__ < 4) || ((__GNUC__ == 4) && __GNUC_MINOR__ < 8)
 #error "Need at least GCC 4.8 or newer"
+#endif
+#endif
+#elif LJ_TARGET_LOONGARCH64
+#if __clang__
+#if ((__clang_major__ < 8) || ((__clang_major__ == 8) && __clang_minor__ < 0)) && !defined(__NX_TOOLCHAIN_MAJOR__)
+#error "Need at least Clang 8.0 or newer"
+#endif
+#else
+#if (__GNUC__ < 8) || ((__GNUC__ == 8) && __GNUC_MINOR__ < 3)
+#error "Need at least GCC 8.3 or newer"
 #endif
 #endif
 #elif !LJ_TARGET_PS3

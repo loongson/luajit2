@@ -53,6 +53,7 @@ CCOPT_arm=
 CCOPT_arm64=
 CCOPT_ppc=
 CCOPT_mips=
+CCOPT_loongarch64= -fwrapv
 #
 #CCDEBUG=
 # Uncomment the next line to generate debug information:
@@ -102,7 +103,7 @@ XCFLAGS=
 #XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT
 #
 # Disable the JIT compiler, i.e. turn LuaJIT into a pure interpreter.
-#XCFLAGS+= -DLUAJIT_DISABLE_JIT
+XCFLAGS+= -DLUAJIT_DISABLE_JIT
 #
 # Some architectures (e.g. PPC) can use either single-number (1) or
 # dual-number (2) mode. Uncomment one of these lines to override the
@@ -247,6 +248,10 @@ else
 ifneq (,$(findstring LJ_TARGET_S390X ,$(TARGET_TESTARCH)))
   TARGET_LJARCH= s390x
 else
+ifneq (,$(findstring LJ_TARGET_LOONGARCH64 ,$(TARGET_TESTARCH)))
+  TARGET_ARCH= -DLJ_ARCH_ENDIAN=LUAJIT_LE
+  TARGET_LJARCH= loongarch64
+else
 ifneq (,$(findstring LJ_TARGET_ARM64 ,$(TARGET_TESTARCH)))
   ifneq (,$(findstring __AARCH64EB__ ,$(TARGET_TESTARCH)))
     TARGET_ARCH= -D__AARCH64EB__=1
@@ -272,6 +277,7 @@ ifneq (,$(findstring LJ_TARGET_MIPS ,$(TARGET_TESTARCH)))
   endif
 else
   $(error Unsupported target architecture)
+endif
 endif
 endif
 endif
@@ -342,7 +348,9 @@ else
     # Find out whether the target toolchain always generates unwind tables.
     TARGET_TESTUNWIND=$(shell exec 2>/dev/null; echo 'extern void b(void);int a(void){b();return 0;}' | $(TARGET_CC) -c -x c - -o tmpunwind.o && { grep -qa -e eh_frame -e __unwind_info tmpunwind.o || grep -qU -e eh_frame -e __unwind_info tmpunwind.o; } && echo E; rm -f tmpunwind.o)
     ifneq (,$(findstring E,$(TARGET_TESTUNWIND)))
-      TARGET_XCFLAGS+= -DLUAJIT_UNWIND_EXTERNAL
+      ifeq (,$(findstring LJ_TARGET_LOONGARCH64 ,$(TARGET_TESTARCH)))
+        TARGET_XCFLAGS+= -DLUAJIT_UNWIND_EXTERNAL
+      endif
     endif
   endif
   ifneq (SunOS,$(TARGET_SYS))
