@@ -3870,9 +3870,9 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
 
   case BC_ITERN:
     |  // RA = base*8, (RB = (nresults+1)*8, RC = (nargs+1)*8 (2+1)*8)
-    |.if JIT
-    |  hotloop
-    |.endif
+//    |.if JIT
+//    |  hotloop
+//    |.endif
     |->vm_IITERN:
     |  add.d RA, BASE, RA
     |  ld.d TAB:RB, -16(RA)

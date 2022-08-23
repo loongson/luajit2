@@ -865,6 +865,7 @@ static void asm_hrefk(ASMState *as, IRIns *ir)
   RegSet allow = rset_exclude(RSET_GPR, node);
   Reg idx = node;
   Reg key = ra_scratch(as, allow);
+  rset_clear(allow, key);
   int64_t k;
   lj_assertA(ofs % sizeof(Node) == 0, "unaligned HREFK slot");
   if (ofs > 32736) {		//TODO why 32736 ?
@@ -907,7 +908,8 @@ static void asm_uref(ASMState *as, IRIns *ir)
       emit_dji(as, LOONGI_LD_D, dest, uv, ((int32_t)offsetof(GCupval, v))&0xfff);
     }
     emit_lso(as, LOONGI_LD_D, uv, func, (int32_t)offsetof(GCfuncL, uvptr) +
-      (int32_t)sizeof(MRef) * (int32_t)(ir->op2 >> 8), RSET_GPR);
+      (int32_t)sizeof(MRef) * (int32_t)(ir->op2 >> 8),
+      rset_exclude(rset_exclude(RSET_GPR, dest), uv));
   }
 }
 
@@ -1027,7 +1029,7 @@ static void asm_xstore_(ASMState *as, IRIns *ir, int32_t ofs)
     return;
   Reg src = ra_alloc1(as, ir->op2, irt_isfp(ir->t) ? RSET_FPR : RSET_GPR);
   asm_fusexref(as, asm_fxstoreins(as, ir), src, ir->op1,
-		 rset_exclude(RSET_GPR, src), ofs);
+		 rset_exclude(RSET_GPR, src), ofs);		// TODO
 }
 
 #define asm_xstore(as, ir)	asm_xstore_(as, ir, 0)
@@ -1085,6 +1087,7 @@ static void asm_ahustore(ASMState *as, IRIns *ir)
   if (irt_isnum(ir->t)) {
     src = ra_alloc1(as, ir->op2, RSET_FPR);
     idx = asm_fuseahuref(as, ir->op1, &ofs, allow);
+    rset_clear(allow, idx);
     emit_lso(as, LOONGI_FST_D, src, idx, ofs, allow);
   } else {
     Reg tmp = RID_TMP;
@@ -1098,6 +1101,7 @@ static void asm_ahustore(ASMState *as, IRIns *ir)
       rset_clear(allow, type);
     }
     idx = asm_fuseahuref(as, ir->op1, &ofs, allow);
+    rset_clear(allow, idx);
     emit_lso(as, LOONGI_ST_D, tmp, idx, ofs, allow);
     if (ra_hasreg(src)) {
       if (irt_isinteger(ir->t)) {
@@ -1140,7 +1144,8 @@ static void asm_sload(ASMState *as, IRIns *ir)
 	dest = tmp;
 	t.irt = IRT_NUM;  /* Check for original type. */
       } else {
-	Reg tmp = ra_scratch(as, RSET_GPR);
+	Reg tmp = ra_scratch(as, allow);
+        rset_clear(allow, tmp);
 	emit_dj(as, LOONGI_FFINT_D_W, dest, dest);
 	emit_dj(as, LOONGI_MOVGR2FR_W, dest, tmp);
 	dest = tmp;
@@ -1166,6 +1171,7 @@ dotypecheck:
     }
     rset_clear(allow, type);
     Reg tmp1 = ra_scratch(as, allow);
+    rset_clear(allow, tmp1);
     if (irt_ispri(t)) {
       asm_guard(as, LOONGI_BNE, type,
 		ra_allock(as, ~((int64_t)~irt_toitype(t) << 47) , allow));
@@ -1685,7 +1691,7 @@ static void asm_prof(ASMState *as, IRIns *ir)
 static void asm_stack_check(ASMState *as, BCReg topslot,
 			    IRIns *irp, RegSet allow, ExitNo exitno)
 {
-//  /* Try to get an unused temp register, otherwise spill/restore RID_RET*. */
+  /* Try to get an unused temp register, otherwise spill/restore RID_RET*. */
   Reg tmp, pbase = irp ? (ra_hasreg(irp->r) ? irp->r : RID_TMP) : RID_BASE;
   ExitNo oldsnap = as->snapno;
   rset_clear(allow, pbase);
