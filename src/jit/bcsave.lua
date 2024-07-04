@@ -103,6 +103,7 @@ local map_arch = {
   mips64r6 =	{ e = "be", b = 64, m = 8, f = 0xa0000407, },
   mips64r6el =	{ e = "le", b = 64, m = 8, f = 0xa0000407, },
   s390x =	{ e = "be", b = 64, m = 22, },
+  loongarch64 = { e = "le", b = 64, m = 258, f = 0x3, },
 }
 
 local map_os = {
