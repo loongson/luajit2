@@ -769,6 +769,8 @@ static uint32_t jit_cpudetect(void)
 #endif
 #elif LJ_TARGET_S390X
   /* No optional CPU features to detect (for now). */
+#elif LJ_TARGET_LOONGARCH64
+  //flags |= JIT_F_GS464V;
 #else
 #error "Missing CPU detection for this architecture"
 #endif
