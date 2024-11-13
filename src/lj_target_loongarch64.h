@@ -43,7 +43,7 @@ enum {
   RID_LPC = RID_R25,		/* Interpreter PC. */
   RID_DISPATCH = RID_R26,	/* Interpreter DISPATCH table. */
   RID_LREG = RID_R27,		/* Interpreter L. */
-  RID_JGL = RID_R22,		/* On-trace: global_State + 32768. */
+  RID_JGL = RID_R22,		/* On-trace: global_State. */
 
   /* Register ranges [min, max) and number of registers. */
   RID_MIN_GPR = RID_R0,
@@ -114,6 +114,7 @@ static LJ_AINLINE uint32_t *exitstub_trace_addr_(uint32_t *p)
   while (*p == 0x03400000) p++;		/* Skip LOONGI_NOP. */
   return p;
 }
+
 /* Avoid dependence on lj_jit.h if only including lj_target.h. */
 #define exitstub_trace_addr(T, exitno) \
   exitstub_trace_addr_((MCode *)((char *)(T)->mcode + (T)->szmcode))
@@ -125,15 +126,21 @@ static LJ_AINLINE uint32_t *exitstub_trace_addr_(uint32_t *p)
 #define LOONGF_J(r)	((r) << 5)
 #define LOONGF_K(r)	((r) << 10)
 #define LOONGF_A(r)	((r) << 15)
-#define LOONGF_I(n)	((n) << 10)
-#define LOONGF_I20(n)	((n) << 5)
-#define LOONGF_M(n)	((n) << 16)
+#define LOONGF_I5(n)	(((uint32_t)(n) & 0x1fu) << 10)
+#define LOONGF_I6(n)	(((uint32_t)(n) & 0x3fu) << 10)
+#define LOONGF_I12(n)	(((uint32_t)(n) & 0xfffu) << 10)
+#define LOONGF_I16(n)	(((uint32_t)(n) & 0xffffu) << 10)
+#define LOONGF_I20(n)	(((uint32_t)(n) & 0xfffffu) << 5)
+#define LOONGF_I21(n)	((LOONGF_I16(n)) | (((uint32_t)(n) >> 16) & 0x1fu))
+#define LOONGF_I26(n)	((LOONGF_I16(n)) | (((uint32_t)(n) >> 16) & 0x3ffu))
+#define LOONGF_M(n)	(((uint32_t)(n) & 0x3fu) << 16)
+#define LOONGF_L(n)	(((uint32_t)(n) & 0x3fu) << 10)
 
 /* Check for valid field range. */
 #define LOONGF_S_OK(x, b) ((((x) + (1 << (b-1))) >> (b)) == 0)
 
 typedef enum LOONGIns {
-/* Integer instructions. */
+  /* Integer instructions. */
   LOONGI_MOVE = 0x00150000,
   LOONGI_NOP = 0x03400000,
 
@@ -211,7 +218,7 @@ typedef enum LOONGIns {
   LOONGI_STX_D = 0x381c0000,
   LOONGI_LDX_W = 0x38080000,
   LOONGI_STX_W = 0x38180000,
-  LOONGI_STX_B = 0x38100000, 
+  LOONGI_STX_B = 0x38100000,
   LOONGI_STX_H = 0x38140000,
   LOONGI_FLD_S = 0x2b000000,
   LOONGI_FST_S = 0x2b400000,
@@ -312,4 +319,3 @@ typedef enum LOONGIns {
 } LOONGIns;
 
 #endif
-
