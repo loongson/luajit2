@@ -468,11 +468,9 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |6:
   |  ld.d TMP1, L->maxstack
-  |  slt TMP0, TMP2, RD
+  |  blt TMP2, RD, >7
   |  // More results wanted. Check stack size and fill up results with nil.
-  |  slt TMP1, BASE, TMP1
-  |  bnez TMP0, >7
-  |  beqz TMP1, >8
+  |  bge BASE, TMP1, >8
   |  st.d TISNIL, 0(BASE)
   |  addi.w RD, RD, 8
   |  addi.d BASE, BASE, 8
@@ -1328,10 +1326,9 @@ static void build_subroutines(BuildCtx *ctx)
   |.ffunc pcall
   |  ld.d TMP1, L->maxstack
   |  add.d TMP2, BASE, NARGS8:RC
-  |  addi.d NARGS8:RC, NARGS8:RC, -8
   |  .LDXBU TMP3, DISPATCH, DISPATCH_GL(hookmask)
-  |  sltu TMP1, TMP1, TMP2
-  |  bnez TMP1, ->fff_fallback
+  |  bltu TMP1, TMP2, ->fff_fallback
+  |  addi.d NARGS8:RC, NARGS8:RC, -8
   |  or TMP2, BASE, r0
   |  blt NARGS8:RC, r0, ->fff_fallback
   |  addi.d BASE, BASE, 16
@@ -1352,13 +1349,12 @@ static void build_subroutines(BuildCtx *ctx)
   |.ffunc xpcall
   |  ld.d TMP1, L->maxstack
   |  add.d TMP2, BASE, NARGS8:RC
-  |  addi.d NARGS8:TMP0, NARGS8:RC, -16
   |  ld.d CARG1, 0(BASE)
+  |  bltu TMP1, TMP2, ->fff_fallback
+  |  addi.d NARGS8:TMP0, NARGS8:RC, -16
   |  ld.d CARG2, 8(BASE)
-  |  sltu TMP1, TMP1, TMP2
-  |  bnez TMP1, ->fff_fallback
-  |  .LDXBU TMP1, DISPATCH, DISPATCH_GL(hookmask)
   |  blt NARGS8:TMP0, r0, ->fff_fallback
+  |  .LDXBU TMP3, DISPATCH, DISPATCH_GL(hookmask)
   |  gettp TMP2, CARG2
   |  addi.d TMP2, TMP2, -LJ_TFUNC
   |  bnez TMP2, ->fff_fallback		// Traceback must be a function.
@@ -1403,10 +1399,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  ld.d PC, FRAME_PC(BASE)
   |  beqz CARG4, ->fff_fallback		// base == top && st == 0?
   |  add.d TMP2, CARG2, NARGS8:RC
-  |  sltu CARG4, TMP0, TMP2
-  |  st.d BASE, L->base
   |  st.d PC, SAVE_PC(sp)
-  |  bnez CARG4, ->fff_fallback		// Stack overflow?
+  |  st.d BASE, L->base
+  |  bltu TMP0, TMP2, ->fff_fallback		// Stack overflow?
   |1:
   |.if resume
   |  addi.d BASE, BASE, 8		// Keep resumed thread in stack for GC.
@@ -1561,9 +1556,8 @@ static void build_subroutines(BuildCtx *ctx)
   |  ld.w INS, -4(PC)
   |  decode_RB RB, INS
   |5:
-  |  sltu TMP2, RD, RB
+  |  bltu RD, RB, >6			// More results expected?
   |  decode_RA TMP0, INS
-  |  bnez TMP2, >6			// More results expected?
   |  // Adjust BASE. KBASE is assumed to be set for the calling frame.
   |  sub.d BASE, RA, TMP0
   |  ins_next
@@ -1669,28 +1663,26 @@ static void build_subroutines(BuildCtx *ctx)
   |  movgr2fr.w FTMP3, CARG1
   |  checknum CARG2, ->fff_fallback
   |  ffint.d.w FTMP3, FTMP3
-  |  fld.d FARG1, 0(TMP2)
-  |  fmov.d FTMP4, FARG1
+  |  fld.d FTMP4, 0(TMP2)
   |  b >6
   |
   |4:
   |  fld.d FTMP3, 0(BASE)
+  |  checknum CARG1, ->fff_fallback
   |5:  // Handle numbers.
   |  ld.d CARG2, 0(TMP2)
-  |  checknum CARG1, ->fff_fallback
   |  fld.d FTMP4, 0(TMP2)
   |  beq TMP2, TMP3, ->fff_resn
   |  checknum CARG2, >7
   |6:
-  |  fpins FRET1, FTMP3, FTMP4
-  |  fmov.d FTMP3, FRET1
+  |  fpins FTMP3, FTMP3, FTMP4
   |  addi.d TMP2, TMP2, 8
   |  b <5
   |
   |7:  // Convert integer to number and continue with number loop.
-  |  fld.s FARG1, 0(TMP2)
+  |  movgr2fr.w FTMP4, CARG2
   |  checkint CARG2, ->fff_fallback
-  |  ffint.d.w FARG1, FARG1
+  |  ffint.d.w FTMP4, FTMP4
   |  b <6
   |.endmacro
   |
@@ -1869,14 +1861,8 @@ static void build_subroutines(BuildCtx *ctx)
   |.ffunc_bit_op bxor, xor
   |
   |.ffunc_bit bswap
-  |  srli.d TMP0, CRET1, 8
-  |  srli.d TMP1, CRET1, 24
-  |  srli.d TMP2,TMP0, 8
-  |  andi TMP3, TMP2, 0xff
-  |  slli.d TMP3, TMP3, 8
-  |  bstrins.d TMP1, CRET1, 31, 24
-  |  bstrins.d TMP3, TMP0, 23, 16
-  |  or CRET1, TMP1, TMP3
+  |  revb.2w CRET1, CRET1
+  |  bstrpick.d CRET1, CRET1, 31, 0
   |  b ->fff_resi
   |
   |.ffunc_bit tobit
@@ -2312,20 +2298,18 @@ static void build_subroutines(BuildCtx *ctx)
   |.if "func" == "trunc"
   |  slli.d TMP0, TMP0, 32
   |  movgr2fr.d FARG5, TMP0
-  |  fcmp.clt.d FCC0, FTMP4, FRET1	// |x| < result?
+  |  fcmp.clt.d FCC0, FTMP4, FTMP3	// |x| < result?
   |  fsub.d FTMP4, FTMP3, FARG5
   |  fsel FTMP1, FTMP3, FTMP4, FCC0
-  |  movgr2fr.d FTMP3, TMP1
+  |  movgr2cf FCC0, TMP1
   |  fneg.d FTMP4, FTMP1
-  |  movfr2cf FCC0, FTMP3
-  |  fsel FTMP3, FTMP1, FTMP4, FCC0
+  |  fsel FRET1, FTMP1, FTMP4, FCC0
   |  jirl r0, ra, 0
   |.else
   |  fneg.d FTMP4, FTMP3
   |  slli.d TMP0, TMP0, 32
+  |  movgr2cf FCC0, TMP1
   |  movgr2fr.d FARG5, TMP0
-  |  movgr2fr.d FTMP1, TMP1
-  |  movfr2cf FCC0, FTMP1
   |  fsel FTMP1, FTMP3, FTMP4, FCC0
   |.if "func" == "ceil"
   |  fcmp.clt.d FCC0, FTMP1, FARG1	// x > result?
@@ -2333,12 +2317,10 @@ static void build_subroutines(BuildCtx *ctx)
   |  fcmp.clt.d FCC0, FARG1, FTMP1	// x < result?
   |.endif
   |  fsub.d FTMP4, FTMP1, FARG5		// If yes, subtract +-1.
-  |  fsel FTMP3, FTMP1, FTMP4, FCC0
-  |  fmov.d FARG1, FTMP3
+  |  fsel FRET1, FTMP1, FTMP4, FCC0
   |  jirl r0, ra, 0
   |.endif
   |1:
-  |  fmov.d FTMP3, FARG1
   |  jirl r0, ra, 0
   |.endmacro
   |
