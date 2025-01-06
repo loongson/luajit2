@@ -1,7 +1,7 @@
 |// Low-level VM code for LoongArch CPUs.
 |// Bytecode interpreter, fast functions and helper functions.
-|// Copyright (C) 2005-2022 Mike Pall. See Copyright Notice in luajit.h
-|// Copyright (C) 2022 Loongson Technology. All rights reserved.
+|// Copyright (C) 2005-2025 Mike Pall. See Copyright Notice in luajit.h
+|// Copyright (C) 2025 Loongson Technology. All rights reserved.
 |
 |.arch loongarch64
 |.section code_op, code_sub
@@ -1328,10 +1328,11 @@ static void build_subroutines(BuildCtx *ctx)
   |  add.d TMP2, BASE, NARGS8:RC
   |  .LDXBU TMP3, DISPATCH, DISPATCH_GL(hookmask)
   |  bltu TMP1, TMP2, ->fff_fallback
-  |  addi.d NARGS8:RC, NARGS8:RC, -8
+  |  addi.d NARGS8:TMP0, NARGS8:RC, -8
   |  or TMP2, BASE, r0
-  |  blt NARGS8:RC, r0, ->fff_fallback
+  |  blt NARGS8:TMP0, r0, ->fff_fallback
   |  addi.d BASE, BASE, 16
+  |  or NARGS8:RC, NARGS8:TMP0, r0
   |  // Remember active hook before pcall.
   |  srli.w TMP3, TMP3, HOOK_ACTIVE_SHIFT
   |  andi TMP3, TMP3, 1
@@ -2360,10 +2361,9 @@ static void build_subroutines(BuildCtx *ctx)
   |  ld.d NEXT_TMP0, NEXT_TAB->array
   |  addi.d NEXT_NIL, r0, LJ_TNIL
   |1:  // Traverse array part.
-  |  sltu TMP3, NEXT_IDX, NEXT_ASIZE
+  |  bgeu NEXT_IDX, NEXT_ASIZE, >5
   |  slli.w NEXT_TMP1, NEXT_IDX, 3
   |  add.d NEXT_TMP1, NEXT_TMP0, NEXT_TMP1
-  |  beqz TMP3, >5
   |  addi.d TMP3, r0, LJ_TISNUM
   |  ld.d NEXT_TMP2, 0(NEXT_TMP1)
   |  slli.d TMP3, TMP3, 47
@@ -2378,16 +2378,14 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |5:  // Traverse hash part.
   |  sub.w NEXT_RES_IDX, NEXT_IDX, NEXT_ASIZE
-  |  or r18, CARG1, r0
-  |  ld.d NODE:NEXT_RES_VK, TAB:r18->node
+  |  ld.d NODE:NEXT_RES_VK, NEXT_TAB->node
+  |  ld.w NEXT_TMP0, NEXT_TAB->hmask
   |  slli.w NEXT_TMP2, NEXT_RES_IDX, 5
-  |  ld.w NEXT_TMP0, TAB:r18->hmask
   |  slli.w TMP3, NEXT_RES_IDX, 3
   |  sub.w TMP3, NEXT_TMP2, TMP3
   |  add.d NODE:NEXT_RES_VK, NODE:NEXT_RES_VK, TMP3
   |6:
-  |  sltu TMP3, NEXT_TMP0, NEXT_RES_IDX
-  |  bnez TMP3, >8
+  |  bltu NEXT_TMP0, NEXT_RES_IDX, >8
   |  ld.d NEXT_TMP2, NODE:NEXT_RES_VK->val
   |  addi.w NEXT_RES_IDX, NEXT_RES_IDX, 1
   |  bne NEXT_TMP2, NEXT_NIL, >9

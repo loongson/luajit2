@@ -1,7 +1,7 @@
 /*
 ** LoongArch IR assembler (SSA IR -> machine code).
-** Copyright (C) 2005-2022 Mike Pall. See Copyright Notice in luajit.h
-** Copyright (C) 2022 Loongson Technology. All rights reserved.
+** Copyright (C) 2005-2025 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2025 Loongson Technology. All rights reserved.
 */
 
 /* -- Register allocator extensions --------------------------------------- */
@@ -545,9 +545,9 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  emit_djk(as, LOONGI_FADD_D, tmp, left, tmp);
 	  emit_lsptr(as, LOONGI_FLD_D, (tmp & 0x1f), (void *)&as->J->k64[LJ_K64_M2P64],
 		     rset_exclude(RSET_GPR, dest));
-	  emit_branch21(as, LOONGI_BCNEZ, 0, l_end);
+	  emit_branch21(as, LOONGI_BCNEZ, (RID_FCC0 & 0x3f), l_end);
 	  emit_dj(as, LOONGI_FTINTRZ_L_D, tmp, left);
-	  emit_djk(as, LOONGI_FCMP_CLT_D, 0, left, tmp);
+	  emit_djk(as, LOONGI_FCMP_CLT_D, (RID_FCC0 & 0x3f), left, tmp);
 	  emit_lsptr(as, LOONGI_FLD_D, (tmp & 0x1f), (void *)&as->J->k64[LJ_K64_2P63],
 		     rset_exclude(RSET_GPR, dest));
 	} else {
@@ -555,9 +555,9 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	  emit_djk(as, LOONGI_FADD_S, tmp, left, tmp);
 	  emit_lsptr(as, LOONGI_FLD_S, (tmp & 0x1f), (void *)&as->J->k32[LJ_K32_M2P64],
 		     rset_exclude(RSET_GPR, dest));
-	  emit_branch21(as, LOONGI_BCNEZ, 0, l_end);
+	  emit_branch21(as, LOONGI_BCNEZ, (RID_FCC0 & 0x3f), l_end);
 	  emit_dj(as, LOONGI_FTINTRZ_L_S, tmp, left);
-	  emit_djk(as, LOONGI_FCMP_CLT_S, 0, left, tmp);
+	  emit_djk(as, LOONGI_FCMP_CLT_S, (RID_FCC0 & 0x3f), left, tmp);
 	  emit_lsptr(as, LOONGI_FLD_S, (tmp & 0x1f), (void *)&as->J->k32[LJ_K32_2P63],
 		     rset_exclude(RSET_GPR, dest));
 	}
@@ -565,8 +565,8 @@ static void asm_conv(ASMState *as, IRIns *ir)
 	LOONGIns loongi = irt_is64(ir->t) ?
 	  (st == IRT_NUM ? LOONGI_FTINTRZ_L_D : LOONGI_FTINTRZ_L_S) :
 	  (st == IRT_NUM ? LOONGI_FTINTRZ_W_D : LOONGI_FTINTRZ_W_S);
-	emit_dj(as, irt_is64(ir->t) ? LOONGI_MOVFR2GR_D : LOONGI_MOVFR2GR_S, dest, left);
-	emit_dj(as, loongi, left, left);
+	emit_dj(as, irt_is64(ir->t) ? LOONGI_MOVFR2GR_D : LOONGI_MOVFR2GR_S, dest, tmp);
+	emit_dj(as, loongi, tmp, left);
       }
     }
   } else {
