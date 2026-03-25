@@ -613,6 +613,11 @@
 #error "Only n64 ABI supported for MIPS64"
 #undef LJ_TARGET_MIPS
 #endif
+#elif LJ_TARGET_LOONGARCH64
+#if !defined(__loongarch_lp64)
+#error "Only LOONGARCH lp64d ABI is supported"
+#undef LJ_TARGET_LOONGARCH64
+#endif
 #endif
 #endif
 
